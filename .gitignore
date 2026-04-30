@@ -1,0 +1,27 @@
+# Environment files — NEVER commit these
+.env
+.db.env
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor scratch
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker scratch
+docker-compose.override.yml
+
+# Logs
+*.log
+
+# Backups
+*.bak
+*.sql.gz
+*.tar.gz
+backups/

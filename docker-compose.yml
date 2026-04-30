@@ -1,0 +1,42 @@
+# =============================================================================
+# Firefly III — Docker Deployment (Lite)
+# Two services: Firefly III (app) + MariaDB (db).
+# Manual transaction entry, budgets, accounts, rules, reports.
+# Data persists in two named Docker volumes.
+# =============================================================================
+
+services:
+  app:
+    image: fireflyiii/core:latest
+    container_name: firefly_iii_app
+    hostname: app
+    restart: unless-stopped
+    volumes:
+      - firefly_iii_upload:/var/www/html/storage/upload
+    env_file: .env
+    networks:
+      - firefly_iii
+    ports:
+      # host:container — change the LEFT side if 8080 is taken on your host.
+      - "8080:8080"
+    depends_on:
+      - db
+
+  db:
+    image: mariadb:lts
+    container_name: firefly_iii_db
+    hostname: db
+    restart: unless-stopped
+    env_file: .db.env
+    networks:
+      - firefly_iii
+    volumes:
+      - firefly_iii_db:/var/lib/mysql
+
+volumes:
+  firefly_iii_upload:
+  firefly_iii_db:
+
+networks:
+  firefly_iii:
+    driver: bridge
