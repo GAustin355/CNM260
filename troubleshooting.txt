@@ -1,6 +1,6 @@
 ================================================================================
-  FIREFLY III ON DOCKER — TROUBLESHOOTING
-  CNM260 DevOps Project | github.com/GAustin335/CNM260
+FIREFLY III ON DOCKER — TROUBLESHOOTING
+CNM260 DevOps Project | github.com/GAustin355/CNM260
 ================================================================================
 
 Common errors, their causes, and how to fix them. Sorted by what shows up
@@ -8,7 +8,7 @@ most often during a first deployment.
 
 
 ================================================================================
-  ERROR: "port is already allocated" / "Bind for 0.0.0.0:8080 failed"
+ERROR: "port is already allocated" / "Bind for 0.0.0.0:8080 failed"
 ================================================================================
 
 CAUSE: Another program on your machine is using port 8080.
@@ -31,21 +31,21 @@ Open http://localhost:9090 in your browser instead.
 
 
 ================================================================================
-  ERROR: "App key is not set"
+ERROR: "App key is not set"
 ================================================================================
 
 CAUSE: Either you forgot to fill in APP_KEY=, or your APP_KEY contains one
-of these forbidden characters:  # < > = &
+of these forbidden characters: # < > = &
 
-FIX: Regenerate the APP_KEY using the command from the deployment guide and
-paste the new value into .env. Then:
+FIX: Regenerate the APP_KEY using the command from the README and paste the
+new value into .env. Then:
 
     docker compose down
     docker compose up -d
 
 
 ================================================================================
-  ERROR: "SQLSTATE[HY000] [2002] Connection refused" in app logs
+ERROR: "SQLSTATE[HY000] [2002] Connection refused" in app logs
 ================================================================================
 
 CAUSE: The app is trying to talk to the database before MariaDB is fully
@@ -63,7 +63,7 @@ Look for [ERROR] lines. The most common root cause is the next item below.
 
 
 ================================================================================
-  ERROR: "Access denied for user 'firefly'@'%'" or similar auth failure
+ERROR: "Access denied for user 'firefly'@'%'" or similar auth failure
 ================================================================================
 
 CAUSE: MYSQL_PASSWORD in .db.env does NOT match DB_PASSWORD in .env.
@@ -75,7 +75,7 @@ already has the old one.
 
 FIX: You have to destroy the database volume and start over:
 
-    docker compose down -v          # WARNING: deletes all data!
+    docker compose down -v   # WARNING: deletes all data!
 
 Now fix the passwords so they match exactly in BOTH files. Then:
 
@@ -83,7 +83,33 @@ Now fix the passwords so they match exactly in BOTH files. Then:
 
 
 ================================================================================
-  ERROR: Login page loads but credentials don't work after a reset
+ERROR: 500 Internal Server Error - "getaddrinfo for db failed"
+================================================================================
+
+CAUSE: The app container can't find the db container on the Docker network.
+Usually means the db container failed to start, OR Docker Desktop stopped
+running.
+
+FIX:
+
+1. Check if Docker Desktop is running (whale icon steady in system tray)
+
+2. Check container status:
+
+       docker compose ps
+
+   If db shows "Exited", check why:
+
+       docker compose logs db
+
+3. Most common fix - reset the volumes:
+
+       docker compose down -v
+       docker compose up -d --pull=always
+
+
+================================================================================
+ERROR: Login page loads but credentials don't work after a reset
 ================================================================================
 
 CAUSE: You regenerated APP_KEY after creating your first user. The APP_KEY
@@ -91,9 +117,11 @@ encrypts session and password data — change it after the fact and existing
 sessions/passwords break.
 
 FIX (fresh install, nothing to lose):
+
     docker compose down -v
     docker compose up -d --pull=always
-    Re-register the first user.
+
+Re-register the first user.
 
 FIX (data you want to keep):
     Restore the original APP_KEY from your backup of .env. If you didn't
@@ -102,15 +130,17 @@ FIX (data you want to keep):
 
 
 ================================================================================
-  ERROR: "docker compose: command not found" or "docker: command not found"
+ERROR: "docker compose: command not found" or "docker: command not found"
 ================================================================================
 
 CAUSE 1: Docker Desktop is installed but not running.
+
 FIX: Launch Docker Desktop. Wait for the whale icon to be steady (not
 animating). Try the command again.
 
 CAUSE 2: You have the older standalone docker-compose (with a hyphen)
 instead of the modern Docker Compose plugin.
+
 FIX: Update Docker Desktop / Docker Engine to a current version. Or, run
 the legacy command instead:
 
@@ -118,13 +148,34 @@ the legacy command instead:
 
 
 ================================================================================
-  ERROR: "permission denied while trying to connect to the Docker daemon"
-        (Linux only)
+ERROR: "Cannot connect to the Docker daemon" (Windows or Mac)
+================================================================================
+
+CAUSE: Docker Desktop isn't running.
+
+FIX:
+
+1. Open Docker Desktop from the Start menu (Windows) or Applications (Mac)
+
+2. Wait 30-60 seconds for the whale icon in your system tray / menu bar
+   to stop animating
+
+3. Verify it's up:
+
+       docker version
+
+   You should see both a "Client" and a "Server" block with version numbers.
+
+
+================================================================================
+ERROR: "permission denied while trying to connect to the Docker daemon"
+       (Linux only)
 ================================================================================
 
 CAUSE: Your user is not in the `docker` group.
 
 FIX:
+
     sudo usermod -aG docker $USER
 
 Then LOG OUT AND BACK IN (the group change doesn't apply to existing
@@ -132,25 +183,28 @@ sessions). Try the command again.
 
 
 ================================================================================
-  ERROR: Containers start but http://localhost:8080 doesn't respond
+ERROR: Containers start but http://localhost:8080 doesn't respond
 ================================================================================
 
 CAUSE 1: The app is still doing first-run migrations (60+ seconds).
+
 FIX: Wait. Run `docker compose logs -f app` and look for the migration
 output to finish.
 
 CAUSE 2: A firewall is blocking localhost:8080.
+
 FIX: Temporarily disable your firewall and try again. If it works, add an
 exception for port 8080.
 
 CAUSE 3: You changed the host port in docker-compose.yml but are still
 trying to access 8080.
+
 FIX: Use the new port. If your compose file says "9090:8080", visit
 http://localhost:9090 instead.
 
 
 ================================================================================
-  ERROR: Everything works on Linux/Mac but not on Windows
+ERROR: Everything works on Linux/Mac but not on Windows
 ================================================================================
 
 CAUSE: Docker Desktop is running on Hyper-V mode instead of WSL 2.
@@ -160,7 +214,7 @@ based engine" is checked. Apply, restart Docker Desktop.
 
 
 ================================================================================
-  ERROR: docker compose up succeeds but `docker compose ps` shows "exited"
+ERROR: docker compose up succeeds but `docker compose ps` shows "exited"
 ================================================================================
 
 CAUSE: Something inside the container crashed during startup.
@@ -183,7 +237,7 @@ passwords match, nuke it:
 
 
 ================================================================================
-  RESET BUTTON — when you want to start completely over
+RESET BUTTON — when you want to start completely over
 ================================================================================
 
 WARNING: this destroys all transaction data and uploaded files.
@@ -197,19 +251,19 @@ WARNING: this destroys all transaction data and uploaded files.
 
 
 ================================================================================
-  STILL STUCK?
+STILL STUCK?
 ================================================================================
 
-  1. Read the official Firefly III docs:
-     https://docs.firefly-iii.org/how-to/firefly-iii/installation/docker/
+1. Read the official Firefly III docs:
+   https://docs.firefly-iii.org/how-to/firefly-iii/installation/docker/
 
-  2. Check the upstream Docker repo for known issues:
-     https://github.com/firefly-iii/docker/issues
+2. Check the upstream Docker repo for known issues:
+   https://github.com/firefly-iii/docker/issues
 
-  3. Open an issue on this repo:
-     https://github.com/GAustin335/CNM260/issues
+3. Open an issue on this repo:
+   https://github.com/GAustin355/CNM260/issues
 
 
 ================================================================================
-  END OF TROUBLESHOOTING
+END OF TROUBLESHOOTING
 ================================================================================
