@@ -1,96 +1,233 @@
-# Firefly III on Docker — CNM260 DevOps Project
+Companion write-up
 
-A Docker Compose deployment of [Firefly III](https://github.com/firefly-iii/firefly-iii), the open-source self-hosted personal finance manager, paired with a MariaDB backend.
+Full Medium walkthrough with screenshots: https://medium.com/@gaustin_63873/self-hosting-your-money-deploying-firefly-iii-on-docker-f81c249ed8a8?postPublishedType=repub
 
-## What is Firefly III?
+Self-Hosting Your Money: Deploying Firefly III on Docker
+Two containers, one config file pair, and every command you need to copy & paste.
 
-Firefly III is a free, open-source, self-hosted personal finance manager written in PHP (Laravel). Your transaction data lives in your own MariaDB database — nothing is sent to a third-party service. It supports double-entry bookkeeping across asset, expense, revenue, and liability accounts, plus budgets, categories, tags, bills, and a REST API.
+Why Bother Self Hosting Your Finances?
+Mint shut down. YNAB costs over $100 a year. Quicken still wants you to
+install software from a CD. Meanwhile, every cloud finance app means your financial data sits on someone else’s server.
 
-**Upstream project:** <https://github.com/firefly-iii/firefly-iii>
-**License:** [AGPL-3.0](https://github.com/firefly-iii/firefly-iii/blob/main/LICENSE)
+Firefly III is a free, open-source, self-hosted finance manager. It’s a
+PHP/Laravel application that runs in Docker, stores your transactions in
+your own MariaDB database, and never phones home. You get budgets,
+categories, tags, accounts, recurring transactions, bill reminders, and an
+OAuth API.
 
-## What this repo deploys
+This guide walks through deploying it using Docker Compose, with a MariaDB backend, in about fifteen minutes. Everything you need is in this companion repo: https://github.com/GAustin355/CNM260
 
-Two containers on a private Docker bridge network:
+What we are Building?
+Two containers running on a private Docker network:
+   
+    +------------------------------------------+
+    |        Docker network: firefly_iii       |
+    |                                          |
+    |   +-----------+      +-----------+       |
+    |   |    app    | <--> |    db     |       |
+    |   |  Firefly  |      |  MariaDB  |       |
+    |   |    III    |      |   :lts    |       |
+    |   +-----------+      +-----------+       |
+    |        |                                 |
+    |        |    port 8080:8080               |
+    +--------|---------------------------------+
+             v
+           Browser -> http://localhost:8080
 
-```
-+------------------------------------------+
-|        Docker network: firefly_iii       |
-|                                          |
-|   +-----------+      +-----------+       |
-|   |    app    | <--> |    db     |       |
-|   | Firefly   |      | MariaDB   |       |
-|   |   III     |      |   :lts    |       |
-|   +-----------+      +-----------+       |
-|        |                                 |
-|        | port 8080:8080                  |
-+--------|---------------------------------+
-         v
-       Browser -> http://localhost:8080
-```
+The “app” container runs Firefly III. The “db” container runs MariaDB.
 
-* **app** — `fireflyiii/core:latest` — the Firefly III web application
-* **db** — `mariadb:lts` — the database backend
-* **firefly_iii_upload** — Docker volume for uploaded receipts/attachments
-* **firefly_iii_db** — Docker volume for the database (where your transactions live)
+They talk to each other inside Docker; only the app exposes a port to your
+browser.
 
-## Quick deploy
+What You’ll Need Before You Start
+Computer (Windows, Mac, or Linux)
+Docker Desktop — runs the containers
+A terminal (PowerShell on Windows, Terminal on Mac, etc.)
+~500 MB free disk space
+Any text editor — Notepad works just fine for this.
+Step 1 — Install Docker
 
-```
+WINDOWS / macOS:
+
+Go to https://www.docker.com/products/docker-desktop and download Docker
+Desktop. Run the installer. On Windows, accept the WSL 2 prompts and
+restart. Launch Docker Desktop and wait for the whale icon to stop animating.
+
+LINUX (Ubuntu / Debian):
+
+sudo apt update
+sudo apt install -y docker.io docker-compose-plugin
+sudo usermod -aG docker $USER
+Log out and back in so the group change takes effect.
+
+Verify:
+
+docker — version
+docker compose version
+Both commands should print version numbers.
+
+Step 2 — Get the deployment files
+
+Open a terminal, navigate to wherever you want the project to live, and
+clone the repo:
+
 git clone https://github.com/GAustin355/CNM260.git
+
 cd CNM260
+Don’t have git? On the GitHub page, click the green Code button -> Download ZIP, unzip it, and “cd” into the unzipped folder.
+
+Step 3 — Copy the example config files
+The repo ships your .env.example and .db.env.example files. You’re going to copy them, drop the .example suffix, and fill in your own secrets.
+
 cp .env.example .env
 cp .db.env.example .db.env
-# Edit BOTH files: set APP_KEY (32 chars) and matching DB_PASSWORD / MYSQL_PASSWORD
-docker compose up -d --pull=always
-```
+(On Windows PowerShell, use Copy-Item instead of cp.)
 
-Open <http://localhost:8080> and register the first user.
+Step 4 — Generate a 32-character APP_KEY
+Firefly III needs a 32-character random string to encrypt session data.
+Don’t pick one yourself — humans pick bad random strings. Use this command:
 
-## Generating the APP_KEY
+macOS / Linux / WSL:
 
-Firefly III requires a 32-character `APP_KEY`. Don't type it manually.
+head /dev/urandom | LC_ALL=C tr -dc ‘A-Za-z0–9’ | head -c 32 && echo
+Windows PowerShell:
 
-**Windows PowerShell:**
-```
 -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object {[char]$_})
-```
+You’ll get something like:
 
-**Linux / macOS / WSL:**
-```
-head /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | head -c 32 && echo
-```
+aB3kP9xQ2nR7vL1mT4jH6dF8wG5sZ0yC
 
-Avoid the characters `#`, `<`, `>`, `=`, and `&` — they break Laravel's env parser.
+Copy it. You’ll paste it next.
 
-## Common commands
+IMPORTANT:
 
-| Action | Command |
-| --- | --- |
-| Start | `docker compose up -d` |
-| Stop | `docker compose down` |
-| Stop + wipe data | `docker compose down -v` (destroys transactions) |
-| Update images | `docker compose pull && docker compose up -d` |
-| View app logs | `docker compose logs -f app` |
-| Shell into app | `docker compose exec app sh` |
+Don’t put any of these characters in the APP_KEY: # < > = &
+They break Laravel’s parser. The generators above won’t produce them, so
+you’re safe as long as you use the generators.
 
-## Files in this repo
+Step 5 — Edit .env and .db.env
+Open .env in a text editor.
 
-| File | Purpose |
-| --- | --- |
-| `docker-compose.yml` | The deployment definition — two services, one network, two volumes |
-| `.env.example` | Template for the Firefly III app environment (copy to `.env`) |
-| `.db.env.example` | Template for the MariaDB environment (copy to `.db.env`) |
-| `.gitignore` | Keeps real `.env` / `.db.env` files out of git |
-| `LICENSE` | MIT license for the deployment templates |
-| `troubleshooting.txt` | Common errors and fixes |
-| `README.md` | This file |
+Find: APP_KEY=CHANGE_ME_TO_A_RANDOM_32_CHAR_STR
 
-## Companion write-up
+Paste your random string in place of “CHANGE_ME_TO_A_RANDOM_32_CHAR_STR”.
 
-Full Medium walkthrough with screenshots: *(link added after publishing)*
+Then find: DB_PASSWORD=CHANGE_ME_DB_PASSWORD
 
-## License
+Replace “CHANGE_ME_DB_PASSWORD” with a strong password (16+ characters, avoid # < > = &). Save.
 
-Deployment templates: MIT (see [`LICENSE`](./LICENSE))
-Firefly III itself: AGPL-3.0, copyright [James Cole](https://github.com/JC5)
+Now open .db.env.
+
+Find: MYSQL_PASSWORD=CHANGE_ME_DB_PASSWORD
+Paste the SAME password you used in .env. They have to match exactly. If
+they don’t match, the app cannot log into the database and the deployment
+will fail. Save.
+
+Step 6 — Launch the containers
+
+From inside the CNM260 folder:
+
+docker compose up -d — pull=always
+What this does:
+
+— pull=always 
+Downloads the newest fireflyiii/core and mariadb:lts images
+
+up 
+Creates the network, the volumes, starts the containers and
+
+containers -d
+Detaches (runs in background, frees your terminal)
+
+The first run takes about 60 seconds. Docker downloads roughly 400 MB of
+images, MariaDB initializes its data directory, and Firefly III runs its
+database migrations.
+
+Confirm everything is running:
+
+docker compose ps
+You should see two services with status “Up” or “running”
+
+fireflyiii
+mariadb/
+
+Step 7 — Open the app
+
+Go to http://localhost:8080 in your browser. You’ll see the Firefly III
+registration screen. Click Register. The first account you create
+automatically becomes the admin.
+
+After registering, you’ll go through the onboarding wizard — set your
+default currency and create your first asset account.
+
+Common problems and fixes
+“port is already allocated” / “Bind for 0.0.0.0:8080 failed”
+Something else on your machine is using port 8080. Edit
+docker-compose.yml and change “8080:8080” to “9090:8080” (or any free
+port). Then “docker compose up -d” again. Use http://localhost:9090.
+
+“Access denied for user ‘firefly’@’%’”
+MYSQL_PASSWORD in .db.env doesn’t match DB_PASSWORD in .env.
+
+The catch:
+MariaDB only sets the password the FIRST time it starts and writes it
+to the volume. Changing the file later doesn’t change the database.
+Fix: “docker compose down -v” (destroys data!), fix both files to match,
+then “docker compose up -d — pull=always” again.
+
+“App key is not set”
+You forgot to fill in APP_KEY=, or there’s a forbidden character
+(# < > = &) in it. Regenerate the key and try again.
+
+Login page loads but credentials don’t work
+You probably regenerated APP_KEY after creating your first user. The
+APP_KEY encrypts session and password data, so changing it breaks them.
+On a fresh install, the easiest fix is to wipe and start over:
+
+docker compose down -v
+docker compose up -d — pull=always
+Full troubleshooting list is in troubleshooting.txt in the GitHub repo.
+
+Day-to-day commands
+Stop the deployment (data preserved):
+
+docker compose down
+Start it again:
+
+docker compose up -d
+Stop AND wipe all data:
+
+docker compose down -v
+View live app logs:
+
+docker compose logs -f app
+Update to the newest images:
+
+docker compose pull && docker compose up -d
+Back up the database:
+
+docker exec firefly_iii_db mariadb-dump -u firefly -p firefly > backup.sql
+Security notes if you go beyond localhost
+This template is secure by default for localhost-only use. If you want to
+expose Firefly III to the open internet, like I myself, plan to do soon?
+Do these things first:
+
+Put it behind a reverse proxy that terminates TLS (Caddy is easiest).
+Set COOKIE_SECURE=true in .env.
+Don’t expose port 3306. The compose file already keeps the database on
+the internal Docker network — that’s intentional.
+Back up the database volume on a schedule.
+Pin image versions for production.
+Never commit .env or .db.env files. The .gitignore in this repo
+already handles that.
+Wrapping up
+You now have a self-hosted personal finance app at http://localhost:8080
+with all your data stored in a Docker volume on your own machine.
+
+The full template
+
+docker-compose.yml
+env examples
+deployment guide
+troubleshooting reference text
+It all lives over at my repo: https://github.com/GAustin355/CNM260
