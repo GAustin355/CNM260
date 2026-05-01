@@ -1,9 +1,7 @@
-# =============================================================================
-# Firefly III — Docker Deployment (Lite)
+# Firefly III — Docker Deployment
 # Two services: Firefly III (app) + MariaDB (db).
 # Manual transaction entry, budgets, accounts, rules, reports.
 # Data persists in two named Docker volumes.
-# =============================================================================
 
 services:
   app:
@@ -17,7 +15,6 @@ services:
     networks:
       - firefly_iii
     ports:
-      # host:container — change the LEFT side if 8080 is taken on your host.
       - "8080:8080"
     depends_on:
       - db
